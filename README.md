@@ -1,3 +1,1 @@
-To Do
-create small task from the weekwise plan and it to trello (Sattar)
-search tools, collect api's, test it (Asim)
+ReAd the proposal and weekwise plan, mail me if any query, throw a request if u want to contribute, nothing else.....
