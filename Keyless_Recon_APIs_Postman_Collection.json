@@ -1,0 +1,294 @@
+{
+  "info": {
+    "name": "Keyless Recon APIs – Pre-PT Recon",
+    "_postman_id": "46126a95-8e88-4cbe-822a-499d97a1029c",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "A starter Postman collection for website reconnaissance using APIs that do NOT require an API key. Set {{target}} (and {{dnsType}} if needed) at the collection level, then send each request. Tests extract key fields and show a quick summary in the Test Results console."
+  },
+  "variable": [
+    {
+      "key": "target",
+      "value": "https://www.uetpeshawar.edu.pk/"
+    },
+    {
+      "key": "dnsType",
+      "value": "A"
+    },
+    {
+      "key": "cc_index",
+      "value": "CC-MAIN-2024-51-index"
+    }
+  ],
+  "item": [
+    {
+      "name": "crt.sh – Certificate Transparency (Subdomains)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "https://crt.sh/?q={{target}}&output=json",
+          "protocol": "https",
+          "host": [
+            "crt",
+            "sh"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "{{target}}"
+            },
+            {
+              "key": "output",
+              "value": "json"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let data;",
+              "try { data = pm.response.json(); } catch(e) { data = []; }",
+              "let names = new Set();",
+              "(data || []).forEach(row => {",
+              "  if (row.name_value) {",
+              "    row.name_value.split('\n').forEach(n => names.add(n.trim()));",
+              "  }",
+              "});",
+              "let subs = Array.from(names).filter(s => s && !s.startsWith('*.'));",
+              "pm.test('Found subdomains (crt.sh)', function () {",
+              "  pm.expect(subs.length).to.be.greaterThan(0);",
+              "});",
+              "console.log('Subdomains (sample):', subs.slice(0, 50));",
+              "pm.collectionVariables.set('crtsh_subdomains_sample', subs.slice(0, 25).join(', '));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wayback CDX – Historical URLs",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "https://web.archive.org/cdx/search/cdx?url={{target}}&output=json",
+          "protocol": "https",
+          "host": [
+            "web",
+            "archive",
+            "org"
+          ],
+          "path": [
+            "cdx",
+            "search",
+            "cdx"
+          ],
+          "query": [
+            {
+              "key": "url",
+              "value": "{{target}}"
+            },
+            {
+              "key": "output",
+              "value": "json"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let data = []; try { data = pm.response.json(); } catch(e) {}",
+              "if (!Array.isArray(data) || data.length === 0) {",
+              "  pm.test('CDX: no data', function(){ pm.expect(false).to.be.true; });",
+              "} else {",
+              "  let header = data[0] || [];",
+              "  let idxOriginal = header.indexOf('original');",
+              "  let rows = data.slice(1);",
+              "  let urls = new Set(rows.map(r => r[idxOriginal]).filter(Boolean));",
+              "  pm.test('Historical URLs (Wayback CDX)', function(){ pm.expect(urls.size).to.be.greaterThan(0); });",
+              "  console.log('Historical URLs (sample):', Array.from(urls).slice(0, 50));",
+              "  pm.collectionVariables.set('wayback_urls_sample', Array.from(urls).slice(0, 25).join(', '));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wayback Availability – Nearest Snapshot",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "https://archive.org/wayback/available?url={{target}}",
+          "protocol": "https",
+          "host": [
+            "archive",
+            "org"
+          ],
+          "path": [
+            "wayback",
+            "available"
+          ],
+          "query": [
+            {
+              "key": "url",
+              "value": "{{target}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let j = {}; try { j = pm.response.json(); } catch(e) {}",
+              "let snap = j && j.archived_snapshots ? j.archived_snapshots.closest : null;",
+              "pm.test('Has snapshot', function(){ pm.expect(snap).to.be.an('object'); });",
+              "console.log('Snapshot:', snap);",
+              "if (snap && snap.url) pm.collectionVariables.set('wayback_snapshot_url', snap.url);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ThreatCrowd – Domain Report",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "https://www.threatcrowd.org/searchApi/v2/domain/report/?domain={{target}}",
+          "protocol": "https",
+          "host": [
+            "www",
+            "threatcrowd",
+            "org"
+          ],
+          "path": [
+            "searchApi",
+            "v2",
+            "domain",
+            "report",
+            ""
+          ],
+          "query": [
+            {
+              "key": "domain",
+              "value": "{{target}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let j = {}; try { j = pm.response.json(); } catch(e) {}",
+              "let subs = (j && j.subdomains) ? j.subdomains : [];",
+              "let ips = (j && j.ips) ? j.ips : [];",
+              "pm.test('ThreatCrowd pivots present', function(){ pm.expect(subs.length + ips.length).to.be.greaterThan(0); });",
+              "console.log('Subdomains:', subs.slice(0, 50));",
+              "console.log('IPs:', ips.slice(0, 50));",
+              "pm.collectionVariables.set('threatcrowd_subs_sample', subs.slice(0, 25).join(', '));",
+              "pm.collectionVariables.set('threatcrowd_ips_sample', ips.slice(0, 25).join(', '));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Google DoH – Resolve {{dnsType}}",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "https://dns.google/resolve?name={{target}}&type={{dnsType}}",
+          "protocol": "https",
+          "host": [
+            "dns",
+            "google"
+          ],
+          "path": [
+            "resolve"
+          ],
+          "query": [
+            {
+              "key": "name",
+              "value": "{{target}}"
+            },
+            {
+              "key": "type",
+              "value": "{{dnsType}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let j = {}; try { j = pm.response.json(); } catch(e) {}",
+              "let answers = j && j.Answer ? j.Answer : [];",
+              "pm.test('DNS answers present', function(){ pm.expect(answers.length).to.be.greaterThan(0); });",
+              "console.log('Answers:', answers);",
+              "pm.collectionVariables.set('dns_answers_sample', JSON.stringify(answers.slice(0, 10)));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Common Crawl – Example Crawl Index (CDX)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "https://index.commoncrawl.org/{{cc_index}}?url={{target}}&output=json",
+          "protocol": "https",
+          "host": [
+            "index",
+            "commoncrawl",
+            "org"
+          ],
+          "path": [
+            "{{cc_index}}"
+          ],
+          "query": [
+            {
+              "key": "url",
+              "value": "{{target}}"
+            },
+            {
+              "key": "output",
+              "value": "json"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let lines = pm.response.text().trim().split('\n');",
+              "let sample = lines.slice(0, 20);",
+              "pm.test('Common Crawl returned entries', function(){ pm.expect(lines.length).to.be.greaterThan(0); });",
+              "console.log('CC entries (first lines):', sample);",
+              "pm.collectionVariables.set('commoncrawl_sample', sample.join('\n'));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
